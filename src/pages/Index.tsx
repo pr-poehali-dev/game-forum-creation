@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
 import Icon from '@/components/ui/icon';
 
 interface User {
@@ -37,9 +38,22 @@ interface Subsection {
   };
 }
 
+interface Topic {
+  id: string;
+  title: string;
+  author: User;
+  replies: number;
+  views: number;
+  lastActivity: string;
+  isPinned?: boolean;
+}
+
 const ForumPage = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [selectedSubsection, setSelectedSubsection] = useState<string | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const mockUser: User = {
     id: '1',
@@ -168,9 +182,59 @@ const ForumPage = () => {
     }
   ];
 
+  const mockTopics: Topic[] = [
+    {
+      id: 't1',
+      title: 'Обновление правил форума - обязательно к прочтению',
+      author: { id: '2', username: 'Admin', avatar: '', posts: 5000, reputation: 50000 },
+      replies: 45,
+      views: 2340,
+      lastActivity: '5 мин назад',
+      isPinned: true
+    },
+    {
+      id: 't2',
+      title: 'Как правильно оформить жалобу на игрока',
+      author: { id: '3', username: 'ModerTeam', avatar: '', posts: 3200, reputation: 25000 },
+      replies: 23,
+      views: 890,
+      lastActivity: '1 час назад'
+    },
+    {
+      id: 't3',
+      title: 'Обсуждение последнего обновления',
+      author: { id: '4', username: 'PlayerOne', avatar: '', posts: 1200, reputation: 8000 },
+      replies: 156,
+      views: 5678,
+      lastActivity: '30 мин назад'
+    }
+  ];
+
   const handleLogin = () => {
     setCurrentUser(mockUser);
     setIsLoginOpen(false);
+    toast({
+      title: 'Вход выполнен',
+      description: `Добро пожаловать, ${mockUser.username}!`
+    });
+  };
+
+  const handleSubsectionClick = (subsectionId: string) => {
+    setSelectedSubsection(subsectionId);
+    setSelectedTopic(null);
+  };
+
+  const handleTopicClick = (topicId: string) => {
+    setSelectedTopic(topicId);
+  };
+
+  const handleBackToForum = () => {
+    setSelectedSubsection(null);
+    setSelectedTopic(null);
+  };
+
+  const handleBackToTopics = () => {
+    setSelectedTopic(null);
   };
 
   const stats = {
@@ -179,6 +243,12 @@ const ForumPage = () => {
     totalUsers: 12456,
     newestMember: 'NewPlayer2024'
   };
+
+  const currentSubsection = forumCategories
+    .flatMap(cat => cat.subsections)
+    .find(sub => sub.id === selectedSubsection);
+
+  const currentTopic = mockTopics.find(t => t.id === selectedTopic);
 
   return (
     <div className="min-h-screen bg-background">
@@ -240,7 +310,12 @@ const ForumPage = () => {
           </div>
 
           <nav className="flex gap-1 pb-2 text-sm border-t border-border/50 pt-2">
-            <Button variant="ghost" size="sm" className="hover:text-orange-500">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="hover:text-orange-500"
+              onClick={handleBackToForum}
+            >
               <Icon name="Home" className="w-4 h-4 mr-1" />
               Главная
             </Button>
@@ -263,67 +338,269 @@ const ForumPage = () => {
       <main className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-3 space-y-4">
-            {forumCategories.map((category) => (
-              <Card key={category.id} className="overflow-hidden">
-                <CardHeader className="bg-muted/30 border-b border-border py-3">
-                  <div className="flex items-center gap-2">
-                    <Icon name={category.icon as any} className="w-5 h-5 text-orange-500" />
-                    <div>
-                      <CardTitle className="text-base">{category.name}</CardTitle>
-                      <CardDescription className="text-xs">{category.description}</CardDescription>
+            {!selectedSubsection && !selectedTopic && (
+              <>
+                {forumCategories.map((category) => (
+                  <Card key={category.id} className="overflow-hidden">
+                    <CardHeader className="bg-muted/30 border-b border-border py-3">
+                      <div className="flex items-center gap-2">
+                        <Icon name={category.icon as any} className="w-5 h-5 text-orange-500" />
+                        <div>
+                          <CardTitle className="text-base">{category.name}</CardTitle>
+                          <CardDescription className="text-xs">{category.description}</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {category.subsections.map((subsection, idx) => (
+                        <div
+                          key={subsection.id}
+                          onClick={() => handleSubsectionClick(subsection.id)}
+                          className={`p-4 hover:bg-muted/20 cursor-pointer transition-colors ${
+                            idx !== category.subsections.length - 1 ? 'border-b border-border' : ''
+                          }`}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                              <Icon name="MessageSquare" className="w-5 h-5 text-orange-500" />
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-sm hover:text-orange-500 transition-colors">
+                                {subsection.name}
+                              </h3>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {subsection.description}
+                              </p>
+                            </div>
+
+                            <div className="hidden md:flex items-center gap-6 text-xs text-muted-foreground flex-shrink-0">
+                              <div className="text-center">
+                                <div className="font-semibold text-foreground">{subsection.topics}</div>
+                                <div>Темы</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="font-semibold text-foreground">{subsection.posts}</div>
+                                <div>Сообщения</div>
+                              </div>
+                            </div>
+
+                            {subsection.lastPost && (
+                              <div className="hidden lg:block w-48 text-xs flex-shrink-0">
+                                <div className="font-medium text-foreground truncate hover:text-orange-500 cursor-pointer">
+                                  {subsection.lastPost.title}
+                                </div>
+                                <div className="text-muted-foreground mt-1">
+                                  от <span className="text-orange-500">{subsection.lastPost.author}</span>
+                                </div>
+                                <div className="text-muted-foreground">{subsection.lastPost.date}</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </>
+            )}
+
+            {selectedSubsection && !selectedTopic && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleBackToForum}
+                    className="hover:text-orange-500"
+                  >
+                    <Icon name="Home" className="w-4 h-4 mr-1" />
+                    Форум
+                  </Button>
+                  <Icon name="ChevronRight" className="w-4 h-4" />
+                  <span className="text-foreground font-medium">{currentSubsection?.name}</span>
+                </div>
+
+                <Card>
+                  <CardHeader className="border-b">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>{currentSubsection?.name}</CardTitle>
+                        <CardDescription>{currentSubsection?.description}</CardDescription>
+                      </div>
+                      {currentUser && (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button className="bg-orange-500 hover:bg-orange-600">
+                              <Icon name="Plus" className="w-4 h-4 mr-2" />
+                              Создать тему
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Создать новую тему</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <Input placeholder="Заголовок темы" />
+                              <Textarea placeholder="Содержание..." rows={10} />
+                              <Button className="w-full bg-orange-500 hover:bg-orange-600">
+                                Опубликовать
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      )}
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {category.subsections.map((subsection, idx) => (
-                    <div
-                      key={subsection.id}
-                      className={`p-4 hover:bg-muted/20 cursor-pointer transition-colors ${
-                        idx !== category.subsections.length - 1 ? 'border-b border-border' : ''
-                      }`}
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                          <Icon name="MessageSquare" className="w-5 h-5 text-orange-500" />
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-sm hover:text-orange-500 transition-colors">
-                            {subsection.name}
-                          </h3>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {subsection.description}
-                          </p>
-                        </div>
-
-                        <div className="hidden md:flex items-center gap-6 text-xs text-muted-foreground flex-shrink-0">
-                          <div className="text-center">
-                            <div className="font-semibold text-foreground">{subsection.topics}</div>
-                            <div>Темы</div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {mockTopics.map((topic, idx) => (
+                      <div
+                        key={topic.id}
+                        onClick={() => handleTopicClick(topic.id)}
+                        className={`p-4 hover:bg-muted/20 cursor-pointer transition-colors ${
+                          idx !== mockTopics.length - 1 ? 'border-b border-border' : ''
+                        }`}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                            <Avatar className="w-10 h-10">
+                              <AvatarFallback className="bg-orange-500/20 text-orange-500">
+                                {topic.author.username[0]}
+                              </AvatarFallback>
+                            </Avatar>
                           </div>
-                          <div className="text-center">
-                            <div className="font-semibold text-foreground">{subsection.posts}</div>
-                            <div>Сообщения</div>
-                          </div>
-                        </div>
 
-                        {subsection.lastPost && (
-                          <div className="hidden lg:block w-48 text-xs flex-shrink-0">
-                            <div className="font-medium text-foreground truncate hover:text-orange-500 cursor-pointer">
-                              {subsection.lastPost.title}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              {topic.isPinned && (
+                                <Badge variant="outline" className="bg-orange-500/20 text-orange-500 border-orange-500/50">
+                                  <Icon name="Pin" className="w-3 h-3 mr-1" />
+                                  Закреплено
+                                </Badge>
+                              )}
                             </div>
-                            <div className="text-muted-foreground mt-1">
-                              от <span className="text-orange-500">{subsection.lastPost.author}</span>
+                            <h3 className="font-semibold hover:text-orange-500 transition-colors">
+                              {topic.title}
+                            </h3>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Автор: <span className="text-orange-500">{topic.author.username}</span>
                             </div>
-                            <div className="text-muted-foreground">{subsection.lastPost.date}</div>
                           </div>
-                        )}
+
+                          <div className="hidden md:flex items-center gap-6 text-xs text-muted-foreground flex-shrink-0">
+                            <div className="text-center">
+                              <div className="font-semibold text-foreground">{topic.replies}</div>
+                              <div>Ответы</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="font-semibold text-foreground">{topic.views}</div>
+                              <div>Просмотры</div>
+                            </div>
+                          </div>
+
+                          <div className="hidden lg:block text-xs text-muted-foreground flex-shrink-0">
+                            {topic.lastActivity}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {selectedTopic && currentTopic && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleBackToForum}
+                    className="hover:text-orange-500"
+                  >
+                    <Icon name="Home" className="w-4 h-4 mr-1" />
+                    Форум
+                  </Button>
+                  <Icon name="ChevronRight" className="w-4 h-4" />
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleBackToTopics}
+                    className="hover:text-orange-500"
+                  >
+                    {currentSubsection?.name}
+                  </Button>
+                  <Icon name="ChevronRight" className="w-4 h-4" />
+                  <span className="text-foreground font-medium truncate">{currentTopic.title}</span>
+                </div>
+
+                <Card>
+                  <CardHeader className="border-b">
+                    <CardTitle>{currentTopic.title}</CardTitle>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="w-6 h-6">
+                          <AvatarFallback className="bg-orange-500/20 text-orange-500 text-xs">
+                            {currentTopic.author.username[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{currentTopic.author.username}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Icon name="Eye" className="w-4 h-4" />
+                        {currentTopic.views}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Icon name="MessageSquare" className="w-4 h-4" />
+                        {currentTopic.replies}
                       </div>
                     </div>
-                  ))}
-                </CardContent>
-              </Card>
-            ))}
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <div className="space-y-4">
+                      <div className="flex gap-4 p-4 bg-muted/30 rounded-lg">
+                        <Avatar className="w-12 h-12">
+                          <AvatarFallback className="bg-orange-500/20 text-orange-500">
+                            {currentTopic.author.username[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <div className="font-semibold">{currentTopic.author.username}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {currentTopic.author.posts} сообщений • Репутация: {currentTopic.author.reputation}
+                              </div>
+                            </div>
+                            <div className="text-xs text-muted-foreground">{currentTopic.lastActivity}</div>
+                          </div>
+                          <div className="text-sm">
+                            <p>Это пример сообщения в теме форума. Здесь автор описывает тему обсуждения и задаёт вопросы сообществу.</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {currentUser && (
+                        <Card className="border-orange-500/30">
+                          <CardHeader>
+                            <CardTitle className="text-base">Ответить на тему</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              <Textarea placeholder="Введите ваш ответ..." rows={6} />
+                              <Button className="bg-orange-500 hover:bg-orange-600">
+                                <Icon name="Send" className="w-4 h-4 mr-2" />
+                                Отправить ответ
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
 
           <aside className="lg:col-span-1 space-y-4">
